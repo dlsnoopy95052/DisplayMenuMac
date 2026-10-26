@@ -30,6 +30,9 @@ Each enabled display with a working brightness control gets a slider under its n
 - **Built-in display** uses Apple's private `DisplayServices` framework, loaded at runtime. If a future macOS removes it, only that slider disappears.
 - The minimum is 5% so the screen cannot be set fully black.
 
+## Launch at Login
+The menu has a **Launch at Login** checkbox. It adds or removes the per-user LaunchAgent (`~/Library/LaunchAgents/com.local.displaymenu.plist`) that `install.sh` creates, so it takes effect from the next login.
+
 ## Requirements
 - macOS 13 or later (tested conceptually for Sonoma; not tested on a Mac in this environment)
 - Apple Command Line Tools: `xcode-select --install`

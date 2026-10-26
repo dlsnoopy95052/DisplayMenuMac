@@ -182,6 +182,29 @@ enum BrightnessControl {
     }
 }
 
+/// Custom ON/OFF switch. NSSwitch renders grey inside menus (menu windows are never key), so draw it ourselves.
+final class ToggleSwitch: NSControl {
+    var isOn = false { didSet { needsDisplay = true } }
+    override var isEnabled: Bool { didSet { alphaValue = isEnabled ? 1 : 0.5 } }
+    override var intrinsicContentSize: NSSize { NSSize(width: 40, height: 24) }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let track = bounds.insetBy(dx: 1, dy: 1)
+        (isOn ? NSColor.systemBlue : NSColor.tertiaryLabelColor).setFill()
+        NSBezierPath(roundedRect: track, xRadius: track.height / 2, yRadius: track.height / 2).fill()
+        let d = track.height - 4
+        let x = isOn ? track.maxX - d - 2 : track.minX + 2
+        NSColor.white.setFill()
+        NSBezierPath(ovalIn: NSRect(x: x, y: track.minY + 2, width: d, height: d)).fill()
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard isEnabled else { return }
+        isOn.toggle()
+        sendAction(action, to: target)
+    }
+}
+
 struct Monitor {
     let id: String
     let type: String
@@ -222,6 +245,8 @@ final class DisplayMenu: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var detected: [Monitor] = []
     private var lastError: String?
     private var busy = false
+    private let agentURL = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/LaunchAgents/com.local.displaymenu.plist")
     private var brightnessTargets: [String: (displayID: CGDirectDisplayID, isInternal: Bool)] = [:]
     private var pendingLevels: [String: Float] = [:]
     private let pendingLock = NSLock()
@@ -242,7 +267,28 @@ final class DisplayMenu: NSObject, NSApplicationDelegate, NSMenuDelegate {
         reload()
     }
 
-    func menuWillOpen(_ menu: NSMenu) { reload() }
+    func menuWillOpen(_ menu: NSMenu) { if !busy { reload() } }
+
+    /// Runs a displayplacer change off the main thread (macOS can take seconds to reconfigure a display),
+    /// then reports errors and refreshes the menu.
+    private func applyAsync(_ argument: String, failureTitle: String) {
+        busy = true
+        status.button?.appearsDisabled = true
+        status.button?.toolTip = "Display Menu — applying change…"
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            let result = self.execute([argument])
+            DispatchQueue.main.async {
+                self.busy = false
+                self.status.button?.appearsDisabled = false
+                self.status.button?.toolTip = "Display Menu — manage external monitors"
+                if result.1 != 0 {
+                    self.showError(failureTitle, result.0.isEmpty ? "displayplacer exited with status \(result.1)" : result.0)
+                }
+                self.reload()
+            }
+        }
+    }
 
     private func execute(_ args: [String]) -> (String, Int32) {
         guard FileManager.default.isExecutableFile(atPath: executable) else {
@@ -398,6 +444,10 @@ final class DisplayMenu: NSObject, NSApplicationDelegate, NSMenuDelegate {
             errorItem.isEnabled = false
             menu.addItem(errorItem)
         }
+        let login = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        login.target = self
+        login.state = FileManager.default.fileExists(atPath: agentURL.path) ? .on : .off
+        menu.addItem(login)
         let about = NSMenuItem(title: "About Display Menu", action: #selector(showAbout), keyEquivalent: "")
         about.target = self
         menu.addItem(about)
@@ -416,8 +466,7 @@ final class DisplayMenu: NSObject, NSApplicationDelegate, NSMenuDelegate {
         row.addSubview(icon)
 
         let name = monitor.isInternal ? "Built-in Display" : monitor.type
-        let detail = monitor.enabled && monitor.hasValidResolution ? monitor.resolution : "Off"
-        let label = NSTextField(labelWithString: "\(name)  ·  \(detail)")
+        let label = NSTextField(labelWithString: monitor.enabled ? name : "\(name)  ·  Off")
         label.font = monitor.isInternal ? .systemFont(ofSize: 13) : .boldSystemFont(ofSize: 13)
         label.lineBreakMode = .byTruncatingTail
         label.frame = NSRect(x: 42, y: 8, width: 210, height: 18)
@@ -427,8 +476,8 @@ final class DisplayMenu: NSObject, NSApplicationDelegate, NSMenuDelegate {
             label.textColor = .secondaryLabelColor
             row.toolTip = "Built-in display is protected from changes"
         } else {
-            let toggle = NSSwitch(frame: NSRect(x: 262, y: 5, width: 40, height: 24))
-            toggle.state = monitor.enabled ? .on : .off
+            let toggle = ToggleSwitch(frame: NSRect(x: 262, y: 5, width: 40, height: 24))
+            toggle.isOn = monitor.enabled
             toggle.identifier = NSUserInterfaceItemIdentifier(monitor.id)
             toggle.target = self
             toggle.action = #selector(switchClicked(_:))
@@ -476,7 +525,7 @@ final class DisplayMenu: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    @objc private func switchClicked(_ sender: NSSwitch) {
+    @objc private func switchClicked(_ sender: NSControl) {
         guard let id = sender.identifier?.rawValue else { return }
         menu.cancelTracking()  // close the menu before alerts / reload rebuild it
         DispatchQueue.main.async { self.toggle(id: id) }
@@ -485,7 +534,8 @@ final class DisplayMenu: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func modeClicked(_ item: NSMenuItem) {
         guard !busy, let choice = item.representedObject as? ModeChoice else { return }
         busy = true
-        defer { busy = false; reload() }
+        var handedOff = false
+        defer { if !handedOff { busy = false; reload() } }
 
         let listing = execute(["list"])
         guard listing.1 == 0 else { showError("Unable to read displays", listing.0); return }
@@ -500,13 +550,30 @@ final class DisplayMenu: NSObject, NSApplicationDelegate, NSMenuDelegate {
             showError("Invalid resolution", "That mode has no valid resolution, so no command was sent.")
             return
         }
-        let result = execute([argument])
-        if result.1 != 0 {
-            showError("Unable to change resolution", result.0.isEmpty ? "displayplacer exited with status \(result.1)" : result.0)
-        }
+        handedOff = true
+        applyAsync(argument, failureTitle: "Unable to change resolution")
     }
 
     @objc private func refreshClicked() { reload() }
+    /// Launch at login = presence of the per-user LaunchAgent (the same one install.sh creates).
+    @objc private func toggleLaunchAtLogin() {
+        let fm = FileManager.default
+        do {
+            if fm.fileExists(atPath: agentURL.path) {
+                try fm.removeItem(at: agentURL)
+            } else {
+                guard let executable = Bundle.main.executablePath else { throw CocoaError(.fileNoSuchFile) }
+                let plist: [String: Any] = ["Label": "com.local.displaymenu", "ProgramArguments": [executable],
+                                            "RunAtLoad": true, "ProcessType": "Interactive"]
+                try fm.createDirectory(at: agentURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0).write(to: agentURL)
+            }
+        } catch {
+            showError("Unable to change Launch at Login", error.localizedDescription)
+        }
+        reload()
+    }
+
     @objc private func showAbout() {
         let info = Bundle.main.infoDictionary
         let version = info?["CFBundleShortVersionString"] as? String ?? "unknown"
@@ -535,7 +602,8 @@ final class DisplayMenu: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if alert.runModal() != .alertFirstButtonReturn { return }
         }
         busy = true
-        defer { busy = false; reload() }
+        var handedOff = false  // true once applyAsync owns busy/reload
+        defer { if !handedOff { busy = false; reload() } }
 
         // Re-read the real state so we never act on a stale menu.
         let listing = execute(["list"])
@@ -564,10 +632,8 @@ final class DisplayMenu: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
             argument = "id:\(id) enabled:false"
         }
-        let result = execute([argument])
-        if result.1 != 0 {
-            showError("Unable to change display", result.0.isEmpty ? "displayplacer exited with status \(result.1)" : result.0)
-        }
+        handedOff = true
+        applyAsync(argument, failureTitle: "Unable to change display")
     }
 }
 
