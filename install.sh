@@ -5,8 +5,10 @@ if ! xcrun --find swiftc >/dev/null 2>&1; then
   echo 'ERROR: Install Apple Command Line Tools first: xcode-select --install'
   exit 1
 fi
-if [ ! -x /opt/local/bin/displayplacer ]; then
-  echo 'ERROR: displayplacer is missing. First run: sudo port install displayplacer'
+if [ ! -x /opt/local/bin/displayplacer ] && [ ! -x /usr/local/bin/displayplacer ] && [ ! -x /opt/homebrew/bin/displayplacer ]; then
+  echo 'ERROR: displayplacer is missing. Install it with either:'
+  echo '  MacPorts: sudo port install displayplacer'
+  echo '  Homebrew: brew tap jakehilborn/jakehilborn && brew install displayplacer'
   exit 1
 fi
 DEST="$HOME/Applications/Display Menu.app"
@@ -30,7 +32,7 @@ cat > "$DEST/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIdentifier</key><string>com.local.displaymenu</string>
 <key>CFBundleName</key><string>Display Menu</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>1.3</string>
+<key>CFBundleShortVersionString</key><string>1.3.1</string>
 <key>LSMinimumSystemVersion</key><string>13.0</string>
 <key>LSUIElement</key><true/>
 </dict></plist>

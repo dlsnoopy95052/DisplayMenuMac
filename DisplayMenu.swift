@@ -241,7 +241,10 @@ struct Monitor {
 final class DisplayMenu: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let status = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = NSMenu()
-    private let executable = "/opt/local/bin/displayplacer"
+    // MacPorts first (original target), then Homebrew on Intel and Apple Silicon.
+    private static let executableCandidates = ["/opt/local/bin/displayplacer", "/usr/local/bin/displayplacer", "/opt/homebrew/bin/displayplacer"]
+    private let executable = DisplayMenu.executableCandidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+        ?? DisplayMenu.executableCandidates[0]
     private var detected: [Monitor] = []
     private var lastError: String?
     private var busy = false
@@ -292,7 +295,7 @@ final class DisplayMenu: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func execute(_ args: [String]) -> (String, Int32) {
         guard FileManager.default.isExecutableFile(atPath: executable) else {
-            return ("displayplacer not found at \(executable). Install it with: sudo port install displayplacer", 127)
+            return ("displayplacer not found. Install it with: sudo port install displayplacer (MacPorts) or brew tap jakehilborn/jakehilborn && brew install displayplacer (Homebrew)", 127)
         }
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)

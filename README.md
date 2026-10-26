@@ -2,7 +2,7 @@
 
 <img src="icon.png" width="128" alt="Display Menu icon">
 
-A small, free, open-source-style menu bar utility for macOS Sonoma on Intel iMac. It relies on your installed **MacPorts displayplacer** tool.
+A small, free, open-source-style menu bar utility for macOS Sonoma on Intel iMac. It relies on the **displayplacer** tool, installed with either **MacPorts** or **Homebrew**.
 
 ## Features
 - Menu bar icon, no Dock icon or regular window.
@@ -12,6 +12,9 @@ A small, free, open-source-style menu bar utility for macOS Sonoma on Intel iMac
 - Built-in display is protected and cannot be toggled.
 - Refresh item to rescan devices.
 - Installs a per-user LaunchAgent to start on future logins.
+
+## What's new in v1.3.1
+- `displayplacer` can be installed with **MacPorts or Homebrew**. The app and `install.sh` look in `/opt/local/bin`, `/usr/local/bin` and `/opt/homebrew/bin`.
 
 ## What's new in v1.3
 - **No more spinning beach ball** when turning a display off/on or changing resolution. `displayplacer` changes now run in the background, so the menu bar app stays responsive while macOS reconfigures the display (which can still take a few seconds). During the change the menu bar icon is dimmed, and the result (or any error) is shown when it finishes.
@@ -44,7 +47,9 @@ The menu has a **Launch at Login** checkbox. It adds or removes the per-user Lau
 ## Requirements
 - macOS 13 or later (tested conceptually for Sonoma; not tested on a Mac in this environment)
 - Apple Command Line Tools: `xcode-select --install`
-- MacPorts `displayplacer`: `sudo port install displayplacer`
+- `displayplacer`, installed with one of:
+  - MacPorts: `sudo port install displayplacer` (`/opt/local/bin`, checked first)
+  - Homebrew: `brew tap jakehilborn/jakehilborn && brew install displayplacer` (`/usr/local/bin` or `/opt/homebrew/bin`)
 
 ## Installation
 1. Unzip, open Terminal, and `cd` into the extracted `DisplayMenuMac` folder.
@@ -52,7 +57,7 @@ The menu has a **Launch at Login** checkbox. It adds or removes the per-user Lau
 3. Find the display icon on the top menu bar.
 4. Flip the switch on an **External** line to toggle its state.
 
-For additional diagnostics run `/opt/local/bin/displayplacer list` in Terminal.
+For additional diagnostics run `displayplacer list` in Terminal.
 
 ## Caveats
 - Some external displays need a cable reconnect before they can be enabled again.
