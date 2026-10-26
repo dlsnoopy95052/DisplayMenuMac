@@ -21,6 +21,15 @@ A small, free, open-source-style menu bar utility for macOS Sonoma on Intel iMac
 - The menu is refreshed after every operation, and `displayplacer` errors are shown in an alert.
 - Works with any number of external displays; nothing is hardcoded.
 
+## Resolution menu (v1.2)
+Each enabled display, including the built-in one, has a **Resolution** submenu listing its available modes (8-bit colour, best refresh rate per resolution, `HiDPI` marks scaled modes). The current mode is checked. Picking the already-active mode does nothing. The built-in display can change resolution but still cannot be turned off.
+
+## Brightness sliders (v1.2)
+Each enabled display with a working brightness control gets a slider under its name.
+- **External displays** use DDC/CI over I2C (no extra tools). Displays that do not answer DDC simply show no slider.
+- **Built-in display** uses Apple's private `DisplayServices` framework, loaded at runtime. If a future macOS removes it, only that slider disappears.
+- The minimum is 5% so the screen cannot be set fully black.
+
 ## Requirements
 - macOS 13 or later (tested conceptually for Sonoma; not tested on a Mac in this environment)
 - Apple Command Line Tools: `xcode-select --install`
