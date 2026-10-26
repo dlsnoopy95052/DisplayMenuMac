@@ -11,6 +11,14 @@ A small, free, open-source-style menu bar utility for macOS Sonoma on Intel iMac
 - Refresh item to rescan devices.
 - Installs a per-user LaunchAgent to start on future logins.
 
+## What's new in v1.1
+- Fixes `could not find res:0x0 scaling:off` when turning a display back on.
+- Before a display is turned off, its working configuration (resolution, refresh rate, color depth, scaling, origin, rotation) is saved. Configurations are also refreshed whenever an enabled external display is seen, and stored in the app's preferences, so they survive restarts.
+- Turning a display on restores that saved configuration instead of sending only `enabled:true`. `res:0x0` or any invalid resolution is never sent; if no valid saved configuration exists you get an error message instead.
+- The current state is re-read before every action; if the display is already in the requested state, no command runs.
+- The menu is refreshed after every operation, and `displayplacer` errors are shown in an alert.
+- Works with any number of external displays; nothing is hardcoded.
+
 ## Requirements
 - macOS 13 or later (tested conceptually for Sonoma; not tested on a Mac in this environment)
 - Apple Command Line Tools: `xcode-select --install`
