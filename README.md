@@ -7,11 +7,19 @@ A small, free, open-source-style menu bar utility for macOS Sonoma on Intel iMac
 ## Features
 - Menu bar icon, no Dock icon or regular window.
 - Lists all monitors detected by `displayplacer list`.
-- Labels external displays in bold and shows ON/OFF with a checkmark.
-- Click an external display to toggle it on/off.
+- Labels external displays in bold and shows an ON/OFF switch (blue = ON).
+- Flip the switch of an external display to turn it on/off.
 - Built-in display is protected and cannot be toggled.
 - Refresh item to rescan devices.
 - Installs a per-user LaunchAgent to start on future logins.
+
+## What's new in v1.3
+- **No more spinning beach ball** when turning a display off/on or changing resolution. `displayplacer` changes now run in the background, so the menu bar app stays responsive while macOS reconfigures the display (which can still take a few seconds). During the change the menu bar icon is dimmed, and the result (or any error) is shown when it finishes.
+- **Launch at Login** checkbox in the menu (see below).
+- ON/OFF switch is drawn in blue when ON (the system switch shows grey inside menus), and the display name is no longer truncated.
+
+## What's new in v1.2
+Resolution submenu and brightness sliders (see below).
 
 ## What's new in v1.1
 - Fixes `could not find res:0x0 scaling:off` when turning a display back on.
@@ -30,7 +38,7 @@ Each enabled display with a working brightness control gets a slider under its n
 - **Built-in display** uses Apple's private `DisplayServices` framework, loaded at runtime. If a future macOS removes it, only that slider disappears.
 - The minimum is 5% so the screen cannot be set fully black.
 
-## Launch at Login
+## Launch at Login (v1.3)
 The menu has a **Launch at Login** checkbox. It adds or removes the per-user LaunchAgent (`~/Library/LaunchAgents/com.local.displaymenu.plist`) that `install.sh` creates, so it takes effect from the next login.
 
 ## Requirements
@@ -42,7 +50,7 @@ The menu has a **Launch at Login** checkbox. It adds or removes the per-user Lau
 1. Unzip, open Terminal, and `cd` into the extracted `DisplayMenuMac` folder.
 2. Run `bash install.sh`.
 3. Find the display icon on the top menu bar.
-4. Click an **External** line to toggle its state.
+4. Flip the switch on an **External** line to toggle its state.
 
 For additional diagnostics run `/opt/local/bin/displayplacer list` in Terminal.
 
