@@ -1,5 +1,7 @@
 # Display Menu for macOS
 
+<img src="icon.png" width="128" alt="Display Menu icon">
+
 A small, free, open-source-style menu bar utility for macOS Sonoma on Intel iMac. It relies on your installed **MacPorts displayplacer** tool.
 
 ## Features
