@@ -13,6 +13,9 @@ A small, free, open-source-style menu bar utility for macOS Sonoma on Intel iMac
 - Refresh item to rescan devices.
 - Installs a per-user LaunchAgent to start on future logins.
 
+## What's new in v1.3.2
+- External displays are now listed by their **product name** (e.g. "LG HDR 4K") instead of the generic type. The name is remembered, so a switched-off display keeps it.
+
 ## What's new in v1.3.1
 - `displayplacer` can be installed with **MacPorts or Homebrew**. The app and `install.sh` look in `/opt/local/bin`, `/usr/local/bin` and `/opt/homebrew/bin`.
 

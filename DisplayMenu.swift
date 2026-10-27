@@ -217,6 +217,10 @@ struct Monitor {
     var origin: String? = nil
     var rotation: String? = nil
     var modes: [Mode] = []
+    /// Product name reported by the display itself (e.g. "LG HDR 4K"); nil when unknown.
+    var productName: String? = nil
+
+    var displayName: String { isInternal ? "Built-in Display" : (productName ?? type) }
 
     var hasValidResolution: Bool { isValidResolution(resolution) }
 
@@ -234,7 +238,7 @@ struct Monitor {
 
     var title: String {
         let kind = isInternal ? "Built-in" : "External"
-        return "\(kind) · \(type) · \(resolution) · \(enabled ? "ON" : "OFF")"
+        return "\(kind) · \(displayName) · \(resolution) · \(enabled ? "ON" : "OFF")"
     }
 }
 
@@ -254,6 +258,12 @@ final class DisplayMenu: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var pendingLevels: [String: Float] = [:]
     private let pendingLock = NSLock()
     private let savedKey = "savedDisplayConfigs"
+    private let namesKey = "savedDisplayNames"
+    /// Product names remembered per display, so a switched-off display keeps its name.
+    private var savedNames: [String: String] {
+        get { UserDefaults.standard.dictionary(forKey: namesKey) as? [String: String] ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: namesKey) }
+    }
     private var savedConfigs: [String: String] {
         get { UserDefaults.standard.dictionary(forKey: savedKey) as? [String: String] ?? [:] }
         set { UserDefaults.standard.set(newValue, forKey: savedKey) }
@@ -372,6 +382,22 @@ final class DisplayMenu: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    /// Fill in each external display's product name from NSScreen, falling back to the last name seen.
+    private func resolveNames() {
+        var names = savedNames
+        for index in detected.indices where !detected[index].isInternal {
+            let id = detected[index].id
+            if let displayID = BrightnessControl.displayID(forPersistentID: id),
+               let screen = NSScreen.screens.first(where: {
+                   ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == displayID }),
+               !screen.localizedName.isEmpty {
+                names[id] = screen.localizedName
+            }
+            detected[index].productName = names[id]
+        }
+        savedNames = names
+    }
+
     /// Keep the last known valid configuration of every enabled external display.
     private func remember(_ monitors: [Monitor]) {
         var configs = savedConfigs
@@ -393,6 +419,7 @@ final class DisplayMenu: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let result = execute(["list"])
         lastError = result.1 == 0 ? nil : result.0
         detected = result.1 == 0 ? parse(result.0) : []
+        resolveNames()
         remember(detected)
         menu.removeAllItems()
         brightnessTargets.removeAll()
@@ -468,7 +495,7 @@ final class DisplayMenu: NSObject, NSApplicationDelegate, NSMenuDelegate {
         icon.contentTintColor = .labelColor
         row.addSubview(icon)
 
-        let name = monitor.isInternal ? "Built-in Display" : monitor.type
+        let name = monitor.displayName
         let label = NSTextField(labelWithString: monitor.enabled ? name : "\(name)  ·  Off")
         label.font = monitor.isInternal ? .systemFont(ofSize: 13) : .boldSystemFont(ofSize: 13)
         label.lineBreakMode = .byTruncatingTail
@@ -599,7 +626,7 @@ final class DisplayMenu: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if monitor.enabled {
             let alert = NSAlert()
             alert.messageText = "Disable external monitor?"
-            alert.informativeText = "\(monitor.type) will be removed from the desktop. Some monitors may require unplugging and reconnecting the cable to turn back on."
+            alert.informativeText = "\(monitor.displayName) will be removed from the desktop. Some monitors may require unplugging and reconnecting the cable to turn back on."
             alert.addButton(withTitle: "Disable")
             alert.addButton(withTitle: "Cancel")
             if alert.runModal() != .alertFirstButtonReturn { return }
